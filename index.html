@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Modern Bingo Dashboard</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --accent: #0ea5e9;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass: rgba(255, 255, 255, 0.95);
+            --tile-default: #f8fafc;
+            --tile-active: #2563eb;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        /* --- Login Section --- */
+        #loginOverlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-card {
+            background: var(--glass);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 90%;
+            max-width: 350px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* --- Dashboard Layout --- */
+        #dashboard {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* --- The Grid (Mobile First) --- */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            background: var(--glass);
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px; /* Limits size on desktop */
+            aspect-ratio: 1 / 1;
+        }
+
+        .tile {
+            background: var(--tile-default);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(0,0,0,0.05);
+            aspect-ratio: 1 / 1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .tile:active { transform: scale(0.9); }
+
+        .tile.active {
+            background: var(--tile-active);
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+            border-color: transparent;
+        }
+
+        .logo-tile {
+            background: #1e293b;
+            border: none;
+        }
+
+        .logo-tile svg { width: 60%; height: 60%; fill: white; }
+
+        /* --- UI Elements --- */
+        input {
+            width: 100%;
+            padding: 14px;
+            margin: 20px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: #1e293b;
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .btn-primary:active { transform: scale(0.98); }
+
+        .shuffle-btn {
+            margin-top: 25px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            backdrop-filter: blur(5px);
+        }
+
+        /* --- Desktop Tweak --- */
+        @media (min-width: 600px) {
+            .grid-container { gap: 12px; padding: 25px; }
+            .tile { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-card">
+            <h1 style="margin:0; font-size: 1.8rem;">Ready?</h1>
+            <p style="color: #64748b;">Enter your name to play Bingo</p>
+            <input type="text" id="userNameInput" placeholder="User Name" maxlength="12" autofocus>
+            <button class="btn-primary" onclick="login()">Enter Dashboard</button>
+        </div>
+    </div>
+
+    <div id="dashboard">
+        <div class="header">
+            <h2 id="displayName" style="margin:0;">Player</h2>
+            <p id="msg" style="margin:5px 0 0; opacity: 0.9;">Match 5 in a row to win!</p>
+        </div>
+
+        <div class="grid-container" id="grid"></div>
+
+        <button class="btn-primary shuffle-btn" onclick="initGrid()">New Game</button>
+    </div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        let tilesArray = [];
+
+        function login() {
+            const name = document.getElementById('userNameInput').value.trim();
+            if (name) {
+                document.getElementById('displayName').innerText = "Hello, " + name;
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'flex';
+                initGrid();
+            }
+        }
+
+        function initGrid() {
+            grid.innerHTML = '';
+            tilesArray = [];
+            let nums = Array.from({length: 24}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+            
+            let numIdx = 0;
+            for (let i = 0; i < 25; i++) {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+
+                if (i === 12) {
+                    tile.classList.add('logo-tile', 'active');
+                    tile.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z"/></svg>`;
+                } else {
+                    tile.innerText = nums[numIdx++];
+                    tile.onclick = () => {
+                        tile.classList.toggle('active');
+                        checkBingo();
+                    };
+                }
+                grid.appendChild(tile);
+                tilesArray.push(tile);
+            }
+        }
+
+        function checkBingo() {
+            const size = 5;
+            let win = false;
+
+            // Rows & Cols
+            for (let i = 0; i < size; i++) {
+                let rowCount = 0, colCount = 0;
+                for (let j = 0; j < size; j++) {
+                    if (tilesArray[i * size + j].classList.contains('active')) rowCount++;
+                    if (tilesArray[j * size + i].classList.contains('active')) colCount++;
+                }
+                if (rowCount === size || colCount === size) win = true;
+            }
+
+            // Diagonals
+            let d1 = 0, d2 = 0;
+            for (let i = 0; i < size; i++) {
+                if (tilesArray[i * size + i].classList.contains('active')) d1++;
+                if (tilesArray[i * size + (size - 1 - i)].classList.contains('active')) d2++;
+            }
+            if (d1 === size || d2 === size) win = true;
+
+            if (win) {
+                setTimeout(() => {
+                    alert("✨ BINGO! You won! ✨");
+                    initGrid();
+                }, 150);
+            }
+        }
+    </script>
+</body>
+</html>
